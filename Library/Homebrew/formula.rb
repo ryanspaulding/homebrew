@@ -1,15 +1,6 @@
 require 'download_strategy'
 require 'fileutils'
 
-class FormulaUnavailableError <RuntimeError
-  def initialize name
-    @name = name
-    super "No available formula for #{name}"
-  end
-
-  attr_reader :name
-end
-
 
 class SoftwareSpecification
   attr_reader :url, :specs, :using
@@ -223,6 +214,22 @@ class Formula
     end
   end
 
+  def == b
+    name == b.name
+  end
+  def eql? b
+    self == b and self.class.equal? b.class
+  end
+  def hash
+    name.hash
+  end
+  def <=> b
+    name <=> b.name
+  end
+  def to_s
+    name
+  end
+
   # Standard parameters for CMake builds.
   # Using Build Type "None" tells cmake to use our CFLAGS,etc. settings.
   # Setting it to Release would ignore our flags.
@@ -266,15 +273,25 @@ class Formula
 
   # an array of all Formula, instantiated
   def self.all
-    all = []
+    map{ |f| f }
+  end
+  def self.map
+    rv = []
+    each{ |f| rv << yield(f) }
+    rv
+  end
+  def self.each
     names.each do |n|
       begin
-        all << Formula.factory(n)
+        yield Formula.factory(n)
       rescue
         # Don't let one broken formula break commands.
       end
     end
-    return all
+  end
+
+  def inspect
+    name
   end
 
   def self.aliases
@@ -352,7 +369,20 @@ class Formula
   end
 
   def external_deps
-    self.class.external_deps
+    self.class.external_deps or {}
+  end
+
+  # deps are in an installable order
+  # which means if a depends on b then b will be ordered before a in this list
+  def recursive_deps
+    Formula.expand_deps(self).flatten.uniq
+  end
+
+  def self.expand_deps f
+    f.deps.map do |dep|
+      dep = Formula.factory dep
+      expand_deps(dep) << dep
+    end
   end
 
 protected
@@ -381,11 +411,8 @@ protected
         raise
       end
     end
-  rescue SystemCallError
-    # usually because exec could not be find the command that was requested
-    raise
   rescue
-    raise BuildError.new(cmd, args, $?)
+    raise BuildError.new(self, cmd, args, $?)
   end
 
 private
