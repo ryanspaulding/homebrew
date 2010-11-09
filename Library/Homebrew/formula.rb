@@ -361,7 +361,7 @@ class Formula
   end
 
   def self.path name
-    HOMEBREW_REPOSITORY+"Library/Formula/#{name.downcase}.rb"
+    HOMEBREW_REPOSITORY/:Library/:Formula/"#{name.downcase}.rb"
   end
 
   def deps
@@ -370,6 +370,27 @@ class Formula
 
   def external_deps
     self.class.external_deps or {}
+  end
+
+  def fails_with_llvm msg="", data=nil
+    return unless (ENV['HOMEBREW_USE_LLVM'] or ARGV.include? '--use-llvm')
+
+    build = data.delete :build rescue nil
+    msg = "(No specific reason was given)" if msg.empty?
+
+    opoo "LLVM was requested, but this formula is reported as not working with LLVM:"
+    puts msg
+    puts "Tested with LLVM build #{build}" unless build == nil
+    puts
+
+    if ARGV.force?
+      puts "Continuing anyway. If this works, let us know so we can update the\n"+
+           "formula to remove the warning."
+    else
+      puts "Continuing with GCC 4.2 instead.\n"+
+           "(Use `brew install --force ...` to force use of LLVM.)"
+      ENV.gcc_4_2
+    end
   end
 
   # deps are in an installable order
