@@ -15,7 +15,7 @@ class Pcre < Formula
                           "--prefix=#{prefix}",
                           "--enable-utf8",
                           "--enable-unicode-properties",
-                          "--enable-pcregrep-libz",
+                          "--enable-pcregrep-libz"
     system "make test"
     system "make install"
   end
